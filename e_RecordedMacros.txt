@@ -1,0 +1,151 @@
+Option Explicit
+
+
+Sub ConditionalFormat()
+
+'   'Recorded Macro
+    Sheets("Popularities").Activate
+    Rows("3:3").Select
+    Selection.FormatConditions.AddColorScale ColorScaleType:=3
+    Selection.FormatConditions(Selection.FormatConditions.Count).SetFirstPriority
+    Selection.FormatConditions(1).ColorScaleCriteria(1).Type = _
+        xlConditionValueLowestValue
+    With Selection.FormatConditions(1).ColorScaleCriteria(1).FormatColor
+        .Color = 8109667
+        .TintAndShade = 0
+    End With
+    Selection.FormatConditions(1).ColorScaleCriteria(2).Type = _
+        xlConditionValuePercentile
+    Selection.FormatConditions(1).ColorScaleCriteria(2).Value = 50
+    With Selection.FormatConditions(1).ColorScaleCriteria(2).FormatColor
+        .Color = 8711167
+        .TintAndShade = 0
+    End With
+    Selection.FormatConditions(1).ColorScaleCriteria(3).Type = _
+        xlConditionValueHighestValue
+    With Selection.FormatConditions(1).ColorScaleCriteria(3).FormatColor
+        .Color = 7039480
+        .TintAndShade = 0
+    End With
+    Range("A1").Select
+    'Not recorded
+    Sheets("Assignments").Range("1:1").Font.Bold = True
+End Sub
+
+Sub OrderFrequencies(ByVal InputSheet As String)
+
+    Dim NumOfFrequencies As Integer
+    Dim OrderLevel As Integer
+
+    Dim i As Integer
+
+
+    If Sheets("Popularities").Range("A1").Value = "" Or "3" Then i = 0
+    If Sheets("Popularities").Range("A1").Value = "1" Then i = 1
+    If Sheets("Popularities").Range("A1").Value = "2" Then i = 2
+
+    NumOfFrequencies = CountFrequencies(InputSheet)
+
+    ActiveWorkbook.Worksheets("Popularities").Sort.SortFields.Clear
+       InputSheet = Sheets("RunProgram").Range("C5").Value
+   NumOfFrequencies = CountFrequencies(InputSheet)
+     Sheets("Popularities").Activate
+     
+     
+
+
+    
+    If i = 0 Then  'Ascending Initial Popularities
+        ActiveWorkbook.Worksheets("Popularities").Sort.SortFields.Add Key:=Range("C8"), _
+            SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        With ActiveWorkbook.Worksheets("Popularities").Sort
+            .SetRange Rows("8:" & NumOfFrequencies + 7)
+            .Header = xlGuess
+            .MatchCase = False
+            .Orientation = xlTopToBottom
+            .SortMethod = xlPinYin
+            .Apply
+        End With
+        
+    ElseIf i = 1 Then 'Ascending Frequencies
+            ActiveWorkbook.Worksheets("Popularities").Sort.SortFields.Add Key:=Range("B8"), _
+                SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+            With ActiveWorkbook.Worksheets("Popularities").Sort
+                .SetRange Rows("8:" & NumOfFrequencies + 7)
+                .Header = xlNo
+                .MatchCase = False
+                .Orientation = xlTopToBottom
+                .SortMethod = xlPinYin
+                .Apply
+            End With
+    ElseIf i = 2 Then 'Descending Frequencies
+            ActiveWorkbook.Worksheets("Popularities").Sort.SortFields.Add Key:=Range("A8"), _
+                SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+            With ActiveWorkbook.Worksheets("Popularities").Sort
+                .SetRange Rows("8:" & NumOfFrequencies + 7)
+                .Header = xlNo
+                .MatchCase = False
+                .Orientation = xlTopToBottom
+                .SortMethod = xlPinYin
+                .Apply
+            End With
+        End If
+        
+        
+    Sheets("Popularities").Range("A1").Value = i + 1
+
+
+
+End Sub
+    
+
+Sub CreateGraph()
+
+    Dim LastColumn As Long
+    Dim EmptyColumn As Long
+    
+    Do
+    EmptyColumn = EmptyColumn + 1
+    Loop Until Sheets("HeuristicPerformance").Cells(4, EmptyColumn) = ""
+    LastColumn = EmptyColumn - 1
+    
+    
+        Sheets("HeuristicPerformance").Activate
+        ActiveSheet.ChartObjects("Graph1").Visible = True
+        ActiveSheet.ChartObjects("Graph2").Visible = True
+        ActiveSheet.ChartObjects("Graph3").Visible = True
+        ActiveSheet.ChartObjects("Graph4").Visible = True
+        
+        ActiveSheet.ChartObjects("Graph1").Activate
+        ActiveChart.SeriesCollection(1).Values = Sheets("HeuristicPerformance").Range(Cells(4, 2), Cells(4, LastColumn))
+        ActiveChart.SeriesCollection(2).Values = Sheets("HeuristicPerformance").Range(Cells(5, 2), Cells(5, LastColumn))
+        ActiveChart.SeriesCollection(3).Values = Sheets("HeuristicPerformance").Range(Cells(6, 2), Cells(6, LastColumn))
+        ActiveChart.SeriesCollection(4).Values = Sheets("HeuristicPerformance").Range(Cells(7, 2), Cells(7, LastColumn))
+        ActiveChart.SeriesCollection(1).XValues = Sheets("HeuristicPerformance").Range(Cells(1, 2), Cells(1, LastColumn))
+    
+    
+        ActiveSheet.ChartObjects("Graph2").Activate
+        ActiveChart.SeriesCollection(1).Values = Sheets("HeuristicPerformance").Range(Cells(8, 2), Cells(8, LastColumn))
+        ActiveChart.SeriesCollection(1).XValues = Sheets("HeuristicPerformance").Range(Cells(1, 2), Cells(1, LastColumn))
+        
+        ActiveSheet.ChartObjects("Graph3").Activate
+        ActiveChart.SeriesCollection(1).Values = Sheets("HeuristicPerformance").Range(Cells(9, 2), Cells(9, LastColumn))
+        ActiveChart.SeriesCollection(1).XValues = Sheets("HeuristicPerformance").Range(Cells(, 2), Cells(1, LastColumn))
+        
+        ActiveSheet.ChartObjects("Graph4").Activate
+        ActiveChart.SeriesCollection(1).Values = Sheets("HeuristicPerformance").Range(Cells(13, 3), Cells(13, LastColumn))
+        ActiveChart.SeriesCollection(2).Values = Sheets("HeuristicPerformance").Range(Cells(16, 3), Cells(16, LastColumn))
+        ActiveChart.SeriesCollection(3).Values = Sheets("HeuristicPerformance").Range(Cells(19, 3), Cells(19, LastColumn))
+        ActiveChart.SeriesCollection(4).Values = Sheets("HeuristicPerformance").Range(Cells(22, 3), Cells(22, LastColumn))
+        ActiveChart.SeriesCollection(4).XValues = Sheets("HeuristicPerformance").Range(Cells(1, 2), Cells(1, LastColumn))
+
+End Sub
+    
+
+
+
+    
+    
+
+
+

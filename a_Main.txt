@@ -1,0 +1,427 @@
+Option Explicit
+Public ConstraintArray() As Integer
+Public FrequencyList() As Integer
+Public StartTimer As Double
+
+
+Sub Main()
+
+    'Declarations
+    Dim MaxNumImprovements As Long
+    Dim ChosenStartFreq As Integer
+    Dim ChosenAlgorithm As Integer
+    Dim DoHH As Boolean
+    Dim ChosenSAStartTemperature As Double
+    Dim ChosenSACoolingRate As Double
+    Dim InputWorksheetName As String
+    Dim SpaceDist As Integer
+    Dim HHFreqAttempts As Integer
+    Dim ShowAllImprovements As Boolean
+    Dim StartProbA As Single
+    Dim StartProbB As Single
+    Dim StartProbC As Single
+    Dim StartProbD As Single
+    
+    
+    'Worksheet Preparation
+    Application.Calculation = xlCalculationManual 'Forcing excel to not update calculations gives faster processing
+    Call ClearAllPrintSheets
+    
+    
+    'Input the parameters
+    StartTimer = Timer
+    InputWorksheetName = Range("C5").Value
+    ChosenAlgorithm = Range("E6").Value
+    If IsNumeric(Range("C9").Value) Then ChosenStartFreq = Range("C9").Value  'Only relevant for Ascending Algorithm
+    If IsNumeric(Range("C11").Value) = True Then SpaceDist = Range("C11").Value
+    If Range("E14").Value = True Then
+        DoHH = True
+        Else
+        DoHH = False
+    End If
+    
+    ShowAllImprovements = Range("E16").Value
+    MaxNumImprovements = Range("C18").Value   'Number of Descent Iterations
+
+    
+    StartProbA = Range("C21").Value
+    StartProbB = Range("C22").Value
+    StartProbC = Range("C23").Value
+    StartProbD = Range("C24").Value
+    HHFreqAttempts = Range("C28").Value
+    
+    Call InputConstraints(InputWorksheetName)
+    Call InputFrequencies(InputWorksheetName)
+    
+    If ChosenAlgorithm = 1 Then Call RandomAlgorithm(InputWorksheetName, ChosenSAStartTemperature, ChosenSACoolingRate, ShowAllImprovements, DoHH, MaxNumImprovements, HHFreqAttempts, StartProbA, StartProbB, StartProbC, StartProbD)
+    If ChosenAlgorithm = 2 Then Call AscendingAlgorithm(InputWorksheetName, ShowAllImprovements, DoHH, MaxNumImprovements, ChosenStartFreq, HHFreqAttempts, StartProbA, StartProbB, StartProbC, StartProbD)
+    If ChosenAlgorithm = 3 Then Call SpacedAlgorithm(InputWorksheetName, ShowAllImprovements, DoHH, MaxNumImprovements, HHFreqAttempts, SpaceDist, StartProbA, StartProbB, StartProbC, StartProbD)
+    
+    Application.Calculation = xlCalculationAutomatic
+    Sheets(InputWorksheetName).Activate
+End Sub
+
+Sub InputConstraints(ByVal WorksheetName As String)
+    'Declarations
+    Dim NumOfConstraints As Integer
+    Dim NumOfRequests As Integer
+    Dim NumOfFrequencies As Integer
+    Dim i As Integer
+    
+    'Inputs
+    NumOfFrequencies = CountFrequencies(WorksheetName)
+    NumOfConstraints = CountConstraints(WorksheetName)
+    NumOfRequests = CountRequests(WorksheetName)
+    
+    ReDim ConstraintArray(NumOfRequests, NumOfRequests)
+    ReDim Domain(NumOfFrequencies)
+    
+    'Read all constraints 'DOUBLING STORAGE. NOT TRIANGULAR ANY MORE.
+    For i = 1 To NumOfConstraints
+        ConstraintArray(Sheets(WorksheetName).Cells(i + 2, 2), Sheets(WorksheetName).Cells(i + 2, 1)) = Sheets(WorksheetName).Cells(i + 2, 4)
+        ConstraintArray(Sheets(WorksheetName).Cells(i + 2, 1), Sheets(WorksheetName).Cells(i + 2, 2)) = Sheets(WorksheetName).Cells(i + 2, 4)
+    Next
+    
+
+End Sub
+Sub InputFrequencies(ByVal WorksheetName As String)
+    'Declarations
+    Dim NumOfFrequencies As Integer
+    Dim i As Integer
+    
+    'Inputs
+    NumOfFrequencies = CountFrequencies(WorksheetName)
+    ReDim FrequencyList(NumOfFrequencies)
+    
+    'Read all frequencies
+    For i = 1 To NumOfFrequencies
+        FrequencyList(i) = Sheets(WorksheetName).Cells(i + 2, 6)
+    Next
+End Sub
+
+Sub RandomAlgorithm(ByVal InputSheetName As String, SAStartTemperature As Double, SACoolingRate As Double, ByVal ShowAllImprovements As Boolean, DoHH As Boolean, MaxNumImprovements As Long, ByVal HHFreqAttempts As Integer, ByVal StartProbA As Single, ByVal StartProbB As Single, ByVal StartProbC As Single, ByVal StartProbD As Single)
+    
+    'Declarations
+    Dim NumOfRequests As Integer
+    Dim NumOfFrequencies As Integer
+    Dim Request As Integer
+    Dim j As Integer
+    Dim Domain() As Integer                 'This is what frequency we give each request
+    Dim COUNTFreqAssignIterations As Integer    'Counts how many times we have tried to assign a frequency to a request
+    Dim FreqAssignOkay As Boolean           'Does the assigned frequency survive the constraints
+    Dim COUNTAlgorithmIterations As Integer 'Counts how many times the whole algorithm has been repeated
+    Dim AlgorithmOk As Boolean            'Has the algorithm produced a frequency every request?
+    Dim FrequencyListAndPopularities() As Integer
+    Dim CurrentCost As Double
+    Dim NumOfFrequenciesUsed As Integer
+    Dim MaxIterations As Integer
+
+    'Initial Values & Array Sizing
+    NumOfRequests = UBound(ConstraintArray)
+    NumOfFrequencies = UBound(FrequencyList)
+    COUNTAlgorithmIterations = 1
+    ReDim Domain(1 To NumOfRequests) As Integer
+    ReDim FrequencyListAndPopularities(1 To NumOfFrequencies, 1 To 2)
+    
+    'Quit Value
+    MaxIterations = NumOfRequests
+    
+    COUNTAlgorithmIterations = 0
+    
+    Randomize
+    
+     
+    'FIRST REQUEST
+    Do
+        COUNTAlgorithmIterations = COUNTAlgorithmIterations + 1
+        Domain(1) = ChooseRandomFrequency
+        AlgorithmOk = True     'We initially assume the algorithm produces a result
+        
+        'OTHER REQUESTS
+        For Request = 2 To NumOfRequests
+            COUNTFreqAssignIterations = 1
+            'Assign frequency to a request
+            Do
+                Domain(Request) = ChooseRandomFrequency
+                'Check request&frequency against constraints with previous requests&frequencies
+                If CheckAllConstraints(Domain(), Request, "Initial") = True Then
+                    FreqAssignOkay = True
+                    Exit Do
+                End If
+                If CheckAllConstraints(Domain(), Request, "Initial") = False Then
+                    FreqAssignOkay = False
+                    COUNTFreqAssignIterations = COUNTFreqAssignIterations + 1
+                End If
+            Loop Until COUNTFreqAssignIterations >= MaxIterations
+            
+            'Prevent infinite loop
+            If COUNTFreqAssignIterations >= MaxIterations Then
+                AlgorithmOk = False
+            End If
+    
+            'To prevent an infinite loop...
+            If COUNTAlgorithmIterations >= MaxIterations Then
+                MsgBox ("After " & 100 & " full algorithm iterations. No success. ")
+                Exit Do
+            End If
+        Next Request 'Where no frequency is found within FreqAssignIterationsESC iterations, repeat the whole algorithm, with a new starting frequency
+    Loop Until AlgorithmOk = True
+        
+    'Print
+    Call PrintInitialRunToAssignmentsSheet(Domain())
+
+        
+    'COUNT AND COST
+    Call CountPopularities(NumOfRequests, NumOfFrequencies, Domain(), FrequencyListAndPopularities)
+    CurrentCost = Cost(FrequencyListAndPopularities())
+    NumOfFrequenciesUsed = CountFrequenciesUsed_1D(Domain())
+   
+    If DoHH = True Then
+         Call HyperHeuristic(InputSheetName, Domain(), MaxNumImprovements, ShowAllImprovements, "Random", "", HHFreqAttempts, FrequencyListAndPopularities(), NumOfRequests, NumOfFrequencies, CurrentCost, StartProbA, StartProbB, StartProbC, StartProbD)
+         Else:
+         Call PrintToDatasetSheet(InputSheetName, "-", "-", "Random", "", "-", Str(CurrentCost), "-", Str(NumOfFrequenciesUsed), "-", "", 0, 0, 0, 0)
+     End If
+End Sub
+
+Sub AscendingAlgorithm(ByVal InputSheetName As String, ByVal ShowAllImprovements As Boolean, ByVal DoHH As Boolean, ByVal MaxNumImprovements As Long, ByVal FirstFreq As Integer, ByVal HHFreqAttempts As Integer, ByVal StartProbA As Single, ByVal StartProbB As Single, ByVal StartProbC As Single, ByVal StartProbD As Single)
+    
+    'Declarations
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim Request As Integer
+    Dim NumOfRequests As Integer
+    Dim NumOfFrequencies As Integer
+    Dim Domain() As Integer                 'This is what frequency we give each request
+    Dim FreqAssignOkay As Boolean           'Does the assigned frequency survive the constraints
+    Dim AlgorithmOk As Boolean            'Has the algorithm produced a frequency every request?
+    Dim AscFrequencyList() As Integer
+    Dim NumOfFrequenciesUsed As Integer
+    Dim FrequencyListAndPopularities() As Integer
+    Dim CurrentCost As Double
+    Dim FirstFreqPosition As Integer        'eg. If the first frequency is the second in frequency list, this holds two
+        
+    
+    'Initial Values and Array Sizing
+    NumOfRequests = UBound(ConstraintArray)
+    NumOfFrequencies = UBound(FrequencyList)
+    ReDim Domain(1 To NumOfRequests)
+    ReDim AscFrequencyList(1 To NumOfFrequencies)
+    ReDim FrequencyListAndPopularities(1 To NumOfFrequencies, 1 To 2) As Integer
+    Randomize
+    
+    'Reorder the frequency list to start from the chosen start frequency
+    For i = 1 To NumOfFrequencies
+        AscFrequencyList(i) = FrequencyList(i)
+    Next i
+    
+    FirstFreqPosition = FindInArray(AscFrequencyList(), FirstFreq)
+    If FirstFreqPosition > 1 Then Call ReOrderFrequencyList(FirstFreqPosition, AscFrequencyList())
+    
+    
+    Do
+        Domain(1) = AscFrequencyList(1)
+        
+        'We assume the algorithm works until we find a request which we cannot assign a frequency to.
+        AlgorithmOk = True
+        For Request = 2 To NumOfRequests
+            k = 1
+            'Find frequency for a request
+            Do
+                Domain(Request) = AscFrequencyList(k)
+                'Constraints Check
+                If CheckAllConstraints(Domain(), Request, "Initial") = False Then
+                    FreqAssignOkay = False
+                    k = k + 1
+                    
+                    ElseIf CheckAllConstraints(Domain(), Request, "Initial") = True Then
+                    FreqAssignOkay = True
+                    Exit Do
+                End If
+                
+            Loop Until k > NumOfFrequencies
+            
+            'If no suitable frequency is found for a request, we have failed.
+            If k > NumOfFrequencies Then
+                AlgorithmOk = False
+                Exit For    'No point continuing to the next request. We must restart.
+            End If
+        Next Request
+        
+        
+        If AlgorithmOk = False Then
+            Call ReOrderFrequencyList(2, AscFrequencyList())
+            FirstFreqPosition = FirstFreqPosition + 1
+        End If
+    Loop Until AlgorithmOk = True
+    
+    'COUNT AND COST
+    Call CountPopularities(NumOfRequests, NumOfFrequencies, Domain(), FrequencyListAndPopularities)
+    CurrentCost = Cost(FrequencyListAndPopularities())
+    
+    NumOfFrequenciesUsed = CountFrequenciesUsed_1D(Domain())
+    
+    
+    
+Call PrintInitialRunToAssignmentsSheet(Domain())
+    
+    
+   If DoHH = True Then
+        Call HyperHeuristic(InputSheetName, Domain(), MaxNumImprovements, ShowAllImprovements, "Ascending", "Start Freq:" & FrequencyList(FirstFreqPosition), HHFreqAttempts, FrequencyListAndPopularities(), NumOfRequests, NumOfFrequencies, CurrentCost, StartProbA, StartProbB, StartProbC, StartProbD)
+        Else:
+        Call PrintToDatasetSheet(InputSheetName, "-", "-", "Ascending", "Start Freq:" & FrequencyList(FirstFreqPosition), "-", Str(CurrentCost), "-", Str(NumOfFrequenciesUsed), "-", "", 0, 0, 0, 0)
+    End If
+
+End Sub
+Sub ArrangeFreqsBySpacing(ByVal NumOfFrequencies, ByRef SpacedFrequencies() As Integer, ByVal SpaceDist As Integer)
+
+    Dim UnSpacedFrequencies() As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim MinimumNextFrequency As Integer
+    Dim CurrentFrequency As Integer
+    
+    
+    
+    ReDim SpacedFrequencies(1 To NumOfFrequencies)
+    ReDim UnSpacedFrequencies(1 To NumOfFrequencies)
+    
+    
+    'Store frequencies
+    SpacedFrequencies(1) = FrequencyList(1)
+    
+    j = 1
+    k = 1
+    'Organise Frequencies into Spaced and Unspaced
+    For i = 1 To NumOfFrequencies
+        If FrequencyList(i) >= MinimumNextFrequency Then
+            SpacedFrequencies(j) = FrequencyList(i)
+            j = j + 1
+            CurrentFrequency = FrequencyList(i)
+        End If
+        MinimumNextFrequency = CurrentFrequency + SpaceDist
+    Next i
+    
+    Dim FreqDone As Boolean
+        
+    'Put remaining frequencies in
+    For i = 1 To NumOfFrequencies
+    
+        'Has this freq be put in?
+       j = 1
+        Do
+            If SpacedFrequencies(j) = FrequencyList(i) Then
+            FreqDone = True
+            Else
+            FreqDone = False
+            j = j + 1
+            End If
+        Loop Until (FreqDone = True) Or (SpacedFrequencies(j) = 0)
+        If FreqDone = False Then
+            SpacedFrequencies(j) = FrequencyList(i)
+        End If
+    Next i
+End Sub
+
+
+Sub SpacedAlgorithm(ByVal InputShtName As String, ByVal ShowAllImprovements As Boolean, ByVal DoHH As Boolean, ByVal MaxNumImprovements As Long, ByVal HHFreqAttempts As Integer, ByVal SpaceDist As Integer, ByVal StartProbA As Single, ByVal StartProbB As Single, ByVal StartProbC As Single, ByVal StartProbD As Single)
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim NumOfFrequencies As Integer
+    Dim NumOfRequests As Integer
+    Dim Request As Integer
+    Dim Domain() As Integer
+    Dim FrequencyListAndPopularities() As Integer
+    
+    Dim CurrentFrequency As Integer
+    Dim MinimumNextFrequency As Integer
+    
+    Dim FailedIterations As Single
+    Dim FreqAssignOkay As Integer
+    
+    Dim CurrentCost As Double
+    Dim NumOfFrequenciesUsed As Integer
+    
+    
+    Dim SpacedFrequencies() As Integer
+    Dim UnSpacedFrequencies() As Integer
+    
+    Dim Temp1 As String
+    Dim AlgorithmOk As Boolean
+    
+    
+    
+        NumOfRequests = UBound(ConstraintArray)
+        NumOfFrequencies = UBound(FrequencyList())
+        ReDim Domain(1 To NumOfRequests)
+        ReDim FrequencyListAndPopularities(1 To NumOfFrequencies, 1 To 2) 'Stores frequency (from freq list) and quantity. IN ORDER OF SPACING.
+        
+    Dim SpacedFrequencyList() As Integer
+    
+    Call ArrangeFreqsBySpacing(NumOfFrequencies, SpacedFrequencyList(), SpaceDist)
+    
+    For i = 1 To NumOfFrequencies
+        FrequencyListAndPopularities(i, 1) = SpacedFrequencyList(i)
+    Next i
+    
+    
+    
+    
+    
+    For Request = 1 To NumOfRequests
+    
+        'Assign Freq to a Request
+        i = 1
+        Do
+            Domain(Request) = FrequencyListAndPopularities(i, 1)
+            If CheckAllConstraints(Domain(), Request, "Initial") = True Then
+                FrequencyListAndPopularities(i, 2) = FrequencyListAndPopularities(i, 2) + 1
+                FreqAssignOkay = True
+                Else:
+                FreqAssignOkay = False
+            End If
+            i = i + 1
+        Loop Until (FreqAssignOkay = True) Or (i > NumOfFrequencies)
+    
+        'If the request fails constraints with every frequency
+        If FreqAssignOkay = False Then
+    
+            'Move all the frequencies by one.
+            Temp1 = FrequencyListAndPopularities(1, 1)
+            For i = 1 To NumOfFrequencies - 1
+                FrequencyListAndPopularities(i, 1) = FrequencyListAndPopularities(i + 1, 1)
+            Next i
+            FrequencyListAndPopularities(NumOfFrequencies, 1) = Temp1
+            
+            'Reset all the popularities, since we are reassigning frequencies to every request.
+            For i = 1 To NumOfFrequencies
+                FrequencyListAndPopularities(i, 2) = 0
+            Next i
+            'StartAgain
+            Request = 1
+            FailedIterations = FailedIterations + 1
+        End If
+        
+        If FailedIterations > NumOfFrequencies Then
+            MsgBox ("The spaced formulation algorithm has failed too many times. Try using a different spacing distance.")
+            Exit Sub
+        End If
+    Next Request
+    
+    
+    
+    'Print
+    Call PrintInitialRunToAssignmentsSheet(Domain())
+    CurrentCost = Cost(FrequencyListAndPopularities())
+    NumOfFrequenciesUsed = CountFrequenciesUsed_2D(FrequencyListAndPopularities)
+       
+    'Do Descent Improvement
+    If DoHH = True Then
+        Call HyperHeuristic(InputShtName, Domain(), MaxNumImprovements, ShowAllImprovements, "Spaced", "Dist:" & SpaceDist, HHFreqAttempts, FrequencyListAndPopularities, NumOfRequests, NumOfFrequencies, CurrentCost, StartProbA, StartProbB, StartProbC, StartProbD)
+        Else:
+        Call PrintToDatasetSheet(InputShtName, "-", "-", "Spaced", "Dist:" & SpaceDist, "-", Str(Cost(FrequencyListAndPopularities)), "-", Str(NumOfFrequenciesUsed), "-", "", 0, 0, 0, 0)
+    End If
+End Sub
+

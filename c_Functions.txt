@@ -1,0 +1,326 @@
+Option Explicit
+Function AdvisedSpacingDistance(ByVal WorksheetName As String)
+    Dim FrequencyRange As Integer
+    Dim LargestClique As Integer
+    
+    LargestClique = 12
+    Call InputFrequencies(WorksheetName)
+    
+    FrequencyRange = FrequencyList(UBound(FrequencyList())) - FrequencyList(1)
+    AdvisedSpacingDistance = Int(FrequencyRange / LargestClique)
+
+End Function
+
+
+'Calculates the Cost of a solution
+Function Cost(ByRef FrequencyListAndPopularitiesA() As Integer) As Double
+
+    'Declarations
+    Dim i As Integer
+    Dim LocalCost As Double
+    Dim RunningTotal As Double
+    Dim NumOfFrequencies As Integer
+    Dim NumOfFrequenciesUsed As Integer
+    Dim FrequencyPopularities() As Integer  'How many requests have been assigned to a freq
+    Dim SwapMade As Boolean
+    Dim NumOfRequests As Integer 'REMOVE
+    
+    
+    'Initial Values and Array Sizing
+    NumOfFrequencies = UBound(FrequencyListAndPopularitiesA)
+    ReDim FrequencyPopularities(1 To NumOfFrequencies)
+    NumOfRequests = UBound(ConstraintArray())
+    For i = 1 To NumOfFrequencies
+        FrequencyPopularities(i) = FrequencyListAndPopularitiesA(i, 2) 'We do this so that changes do not go back to subproc.
+    Next
+    
+    'Arrange FrequencyPopularities in ascending order
+    Do
+        SwapMade = False
+        For i = 1 To NumOfFrequencies - 1
+            If FrequencyPopularities(i) > FrequencyPopularities(i + 1) Then
+                Call SwapIntegers(FrequencyPopularities(i), FrequencyPopularities(i + 1))
+                SwapMade = True
+            End If
+        Next i
+    Loop Until SwapMade = False
+    
+
+    
+    'Cost Function
+    For i = 1 To NumOfFrequencies
+        RunningTotal = RunningTotal + (FrequencyPopularities(i) / (NumOfRequests ^ i))
+    Next i
+
+    Cost = RunningTotal
+
+End Function
+Function Costasdasdsad(ByRef FrequencyListAndPopularitiesA() As Integer) As Double 'ORIGINAL
+
+    'Declarations
+    Dim i As Integer
+    Dim LocalCost As Double
+    Dim RunningTotal As Double
+    Dim NumOfFrequencies As Integer
+    Dim NumOfFrequenciesUsed As Integer
+    Dim FrequencyPopularities() As Integer  'How many requests have been assigned to a freq
+    Dim SwapMade As Boolean
+    Dim NumOfRequests As Integer 'REMOVE
+    
+    
+    'Initial Values and Array Sizing
+    NumOfFrequencies = UBound(FrequencyListAndPopularitiesA)
+    ReDim FrequencyPopularities(1 To NumOfFrequencies)
+    NumOfRequests = UBound(ConstraintArray())
+    For i = 1 To NumOfFrequencies
+        FrequencyPopularities(i) = FrequencyListAndPopularitiesA(i, 2) 'We do this so that changes do not go back to subproc.
+    Next
+    
+    'Arrange FrequencyPopularities in ascending order
+    Do
+        SwapMade = False
+        For i = 1 To NumOfFrequencies - 1
+            If FrequencyPopularities(i) > FrequencyPopularities(i + 1) Then
+                Call SwapIntegers(FrequencyPopularities(i), FrequencyPopularities(i + 1))
+                SwapMade = True
+            End If
+        Next i
+    Loop Until SwapMade = False
+    
+    'Find the first non-zero popularity. (ie Smallest FrequencyPopularity>0) To find num of Freqs Used
+    i = 0
+    For i = 0 To NumOfFrequencies - 1
+        If FrequencyPopularities(i + 1) > 0 Then Exit For
+    Next i
+    NumOfFrequenciesUsed = NumOfFrequencies - i
+    
+    'Cost Function
+    For i = 1 To NumOfFrequencies
+        RunningTotal = RunningTotal + (FrequencyPopularities(i) / (i))
+    Next i
+
+    Cost = RunningTotal * (1 / NumOfFrequencies)
+
+End Function
+'Counts the Number Of Frequencies that have been assigned to requests. (From a 1D domain array)
+Function CountFrequenciesUsed_1D(inputDomain() As Integer) As Integer
+    Dim UsedFrequencies() As Integer
+    Dim NumOfFrequencies As Integer
+    Dim NumOfRequests As Integer
+    Dim NumOfFrequenciesUsed As Integer
+    Dim i As Integer
+    Dim j As Integer
+    
+    
+    NumOfRequests = UBound(inputDomain())
+    NumOfFrequencies = UBound(FrequencyList())
+    
+    ReDim UsedFrequencies(1 To NumOfRequests)
+    
+    For i = 1 To NumOfRequests
+        UsedFrequencies(i) = inputDomain(i)
+    Next
+    
+    For i = 1 To NumOfFrequencies
+        For j = 1 To NumOfRequests
+            If FrequencyList(i) = UsedFrequencies(j) Then
+                NumOfFrequenciesUsed = NumOfFrequenciesUsed + 1
+                Exit For
+            End If
+        Next
+    Next
+    
+    CountFrequenciesUsed_1D = NumOfFrequenciesUsed
+End Function
+
+'Counts the Number Of Frequencies that have been assigned to requests. (From a 2D frequency & popularity array)
+Function CountFrequenciesUsed_2D(ByRef FrequencyPopularity() As Integer) As Integer
+
+    'Declarations
+    Dim i As Integer
+    Dim LocalCost As Double
+    Dim NumOfFrequenciesUsed As Integer
+    Dim NumOfFrequencies As Integer
+    
+    'Initial Values
+    NumOfFrequencies = UBound(FrequencyPopularity) 'Possible since it is an nx2 array, n>2. Will always find n.
+    NumOfFrequenciesUsed = 0
+    
+    'Find the first non-zero popularity. (ie Smallest FrequencyPopularity>0) To find num of Freqs Used
+    i = 0
+    For i = 0 To NumOfFrequencies - 1
+        If FrequencyPopularity(i + 1, 2) > 0 Then NumOfFrequenciesUsed = NumOfFrequenciesUsed + 1
+    Next i
+    
+        CountFrequenciesUsed_2D = NumOfFrequenciesUsed
+
+End Function
+
+'Check that a pair of requests, ANum & BNum, can take frequencies AFreq & BFreq
+Function CheckValuesWithConstraints(ANum, AFreq, BNum, BFreq) As Boolean
+    
+    'Declarations
+    Dim Request1 As Integer
+    Dim Request2 As Integer
+    Dim RequiredDifference As Integer
+    Dim ActualDifference As Integer
+    
+    'Request 1 is lower frequency.
+    If ANum < BNum Then
+        Request1 = ANum
+        Request2 = BNum
+        Else
+        Request1 = BNum
+        Request2 = ANum
+    End If
+    
+    RequiredDifference = ConstraintArray(Request1, Request2)
+    ActualDifference = Abs(AFreq - BFreq)
+    
+    If ActualDifference >= RequiredDifference Then
+        CheckValuesWithConstraints = True
+        Else:
+        CheckValuesWithConstraints = False
+    End If
+
+End Function
+Function CheckAllConstraints(ByRef Domain() As Integer, ByVal ChangedRequest As Integer, ByVal CheckType As String)
+    Dim i As Integer
+    Dim NumOfRequests As Integer
+    Dim Result As Boolean
+    NumOfRequests = UBound(Domain())
+    
+    CheckAllConstraints = True
+    Result = True
+    If CheckType = "Initial" Then
+        If ChangedRequest < 2 Then 'If only the first request has been done, exit function.
+            CheckAllConstraints = True
+            Exit Function
+        End If
+        
+        'Otherwise check all requests upto the changed request
+        For i = 1 To ChangedRequest - 1
+            If (Domain(ChangedRequest) - Domain(i)) ^ 2 >= ConstraintArray(ChangedRequest, i) ^ 2 Then
+                Result = True
+                Else
+                CheckAllConstraints = False
+                Exit Function
+            End If
+        Next i
+    End If
+    
+    
+    If CheckType = "Improve" Then
+        For i = 1 To NumOfRequests
+            If Abs(Domain(ChangedRequest) - Domain(i)) >= ConstraintArray(ChangedRequest, i) Then
+                CheckAllConstraints = True
+                Else
+                CheckAllConstraints = False
+                Exit Function
+            End If
+        Next i
+    End If
+    
+    CheckAllConstraints = Result
+End Function
+
+
+'Counts the Number Of Constraints on the input worksheet.
+Function CountConstraints(ByVal InputWorksheet As String) As Integer
+    Dim i As Integer
+    i = 2
+    Do
+    i = i + 1
+    Loop Until Sheets(InputWorksheet).Cells(i, 1) = ""
+    CountConstraints = i - 1
+End Function
+
+'Counts the Number Of Requests on the input worksheet.
+Function CountRequests(ByVal InputWorksheet As String) As Integer
+    Dim LargestValue As Integer
+    Dim i As Integer
+    
+    LargestValue = 0
+    i = 3
+
+    Do
+    If Sheets(InputWorksheet).Cells(i, 1) > LargestValue Then LargestValue = Sheets(InputWorksheet).Cells(i, 1)
+    If Sheets(InputWorksheet).Cells(i, 2) > LargestValue Then LargestValue = Sheets(InputWorksheet).Cells(i, 2)
+    i = i + 1
+    Loop Until Sheets(InputWorksheet).Cells(i, 1) = ""
+    CountRequests = LargestValue
+    
+End Function
+
+'Counts the Number Of Frequencies on the input worksheet.
+Function CountFrequencies(ByVal InputWorksheet As String) As Integer
+    Dim CellEmpty As Boolean
+    Dim i As Integer
+    CellEmpty = False
+    i = 2
+    Do
+        i = i + 1
+        If Sheets(InputWorksheet).Cells(i, 6).Value = "" Then CellEmpty = True
+    Loop Until CellEmpty = True
+    CountFrequencies = i - 3
+
+End Function
+
+'Picks a random frequency from the frequencylist
+Function ChooseRandomFrequency()
+    Dim NumOfFrequencies As Integer
+    Dim RandomNum As Integer
+    
+    NumOfFrequencies = UBound(FrequencyList)
+    RandomNum = Int((Rnd() * NumOfFrequencies) + 1)  '0<=rnd<1  and int effectively rounds down
+    ChooseRandomFrequency = FrequencyList(RandomNum)
+End Function
+Function ChooseRandomRequest(NumOfRequests)
+    ChooseRandomRequest = Int((Rnd() * NumOfRequests) + 1)
+End Function
+Function ChooseLeastPopularFrequency(ByRef FrequencyListAndPopularities() As Integer, NumOfFrequencies)
+    Dim i As Integer
+    Dim LeastPopularFrequency As Integer
+    Dim LeastPopularPopularity As Integer
+    
+    'Find a non-zero popularity
+    i = 1
+    Do
+    LeastPopularFrequency = FrequencyListAndPopularities(i, 1)
+    LeastPopularPopularity = FrequencyListAndPopularities(i, 2)
+    i = i + 1
+    Loop Until LeastPopularPopularity <> 0
+    
+    
+    For i = 1 To NumOfFrequencies
+        If (FrequencyListAndPopularities(i, 2) < LeastPopularPopularity) And (FrequencyListAndPopularities(i, 2) > 0) Then
+            LeastPopularPopularity = FrequencyListAndPopularities(i, 2)
+            LeastPopularFrequency = FrequencyListAndPopularities(i, 1)
+        End If
+    Next
+    ChooseLeastPopularFrequency = LeastPopularFrequency
+
+End Function
+Function FindSpecificRequest(ByRef Domain() As Integer, ByVal Frequency As Integer)
+    Dim i As Integer
+    
+    For i = 1 To UBound(Domain())
+        If Domain(i) = Frequency Then
+            FindSpecificRequest = i
+            Exit Function
+        End If
+    Next
+
+End Function
+
+Function FindInArray(ByRef IntArr() As Integer, ByVal FindMe As Integer)
+    Dim i As Integer
+    
+    For i = 1 To UBound(IntArr())
+        If IntArr(i) = FindMe Then
+            FindInArray = i
+            Exit Function
+        End If
+    Next
+
+End Function

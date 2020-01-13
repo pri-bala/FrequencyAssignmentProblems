@@ -1,0 +1,606 @@
+Option Explicit
+Sub HyperHeuristic(ByVal InputShtName As String, ByRef Domain() As Integer, ByVal MaxNumImprovements As Long, ByVal ShowAllImprovements As Boolean, ByVal FormulationMethod As String, ByVal FormulationDetails As String, ByVal HHFreqAttempts As Integer, ByRef FrequencyListAndPopularities() As Integer, ByVal NumOfRequests As Integer, ByVal NumOfFrequencies As Integer, ByVal InitialCost As Double, ByVal StartProbA As Single, ByVal StartProbB As Single, ByVal StartProbC As Single, ByVal StartProbD As Single)
+    Dim InitialNumFrequenciesUsed As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim Improvement As Long
+    Dim Iteration As Long
+    
+    Dim CurrentCost As Double
+    Dim NewCost As Double
+    Dim NewNumFrequenciesUsed As Integer
+    Dim FullAttempts As Long
+    Dim RandomNumber As Single
+    Dim ProbA As Single
+    Dim ProbB As Single
+    Dim ProbC As Single
+    Dim ProbD As Single
+    Dim APerformance(1 To 2) As Long 'Stores successes 1, failures in 2
+    Dim BPerformance(1 To 2) As Long
+    Dim CPerformance(1 To 2) As Long
+    Dim DPerformance(1 To 2) As Long
+    'Print Initial Popularities
+    InitialNumFrequenciesUsed = CountFrequenciesUsed_2D(FrequencyListAndPopularities)
+    InitialCost = Cost(FrequencyListAndPopularities)
+    
+    
+    Call PreparePopularitiesSheet(InitialNumFrequenciesUsed, InitialCost, FrequencyListAndPopularities())
+           
+    Dim FailedIterations As Integer
+    Dim ResultA As Boolean
+    Dim ResultB As Boolean
+    Dim ResultC As Boolean
+    Dim ResultD As Boolean
+    Dim CurrentHeuristic As String
+    Dim NumOfFrequenciesUsed As Integer
+    Dim LowerBound As Integer
+    
+    
+    ProbA = StartProbA
+    ProbB = StartProbB
+    ProbC = StartProbC
+    ProbD = StartProbD
+    Call PrepareHeuristicPerformanceSheets(ProbA, ProbB, ProbC, ProbD)
+    
+    
+    MaxHHAttempts = HHFreqAttempts
+    
+    Iteration = 0
+    Improvement = 0
+    Dim txt1 As String
+    Dim txt2 As String
+    Dim txt3 As String
+    
+    If IsNumeric(Sheets("RunProgram").Range("C30").Value) = True Then
+    LowerBound = Sheets("RunProgram").Range("C30").Value
+    Else
+    LowerBound = 0
+    End If
+    
+    Call PrintImprToAssignmentANDPopsSheets(Domain, FrequencyListAndPopularities(), 0, InitialCost, "", "", "", NumOfFrequencies, NumOfRequests, NumOfFrequenciesUsed, ShowAllImprovements)
+    
+    
+        'InitialCost is the cost BEFORE any of these improvement.
+        'CurrentCost is the cost of the last iteration.
+        'Initial
+        CurrentCost = InitialCost
+    Do
+            Iteration = Iteration + 1
+            ResultA = False
+            ResultB = False
+            ResultC = False
+            ResultD = False
+            RandomNumber = Rnd
+    
+            
+            If RandomNumber <= ProbA Then
+                CurrentHeuristic = "A"
+                Call HeuristicA_RemoveLeastPopularFrequency(Domain(), FrequencyListAndPopularities(), NumOfRequests, NumOfFrequencies, Improvement, CurrentCost, NewCost, ShowAllImprovements, ResultA, txt1, txt2, txt3)
+            ElseIf RandomNumber <= (ProbB + ProbA) Then
+                CurrentHeuristic = "B"
+                Call HeuristicB_LowerCostMove(Domain(), NumOfRequests, NumOfFrequencies, FrequencyListAndPopularities, Improvement, CurrentCost, NewCost, ShowAllImprovements, ResultB, txt1, txt2, txt3)
+            ElseIf RandomNumber <= (ProbC + ProbB + ProbA) Then
+                CurrentHeuristic = "C"
+                Call HeuristicC_SameCostSwap(Domain, FrequencyListAndPopularities, NumOfRequests, NumOfFrequencies, Improvement, CurrentCost, NewCost, ShowAllImprovements, ResultC, txt1, txt2, txt3)
+            ElseIf RandomNumber <= 1 Then
+                CurrentHeuristic = "D"
+                Call HeuristicD_WorseMove(Domain, NumOfRequests, NumOfFrequencies, FrequencyListAndPopularities, Improvement, NewCost, ShowAllImprovements, ResultD, txt1, txt2, txt3)
+           End If
+            
+          NumOfFrequenciesUsed = CountFrequenciesUsed_1D(Domain())
+
+    
+            If (ResultA = True Or ResultB = True Or ResultC = True Or ResultD = True) Then
+                Improvement = Improvement + 1
+                If ShowAllImprovements = True Then Call PrintImprToAssignmentANDPopsSheets(Domain, FrequencyListAndPopularities(), Improvement, NewCost, txt1, txt2, txt3, NumOfFrequencies, NumOfRequests, NumOfFrequenciesUsed, ShowAllImprovements)
+                CurrentCost = NewCost
+                FailedIterations = 0
+                Else:
+                FailedIterations = FailedIterations + 1
+            End If
+            Call UpdateProbANDPerformance(Improvement, CurrentHeuristic, MaxNumImprovements, ProbA, ProbB, ProbC, ProbD, ResultA, ResultB, ResultC, ResultD, StartProbA, StartProbB, StartProbC, StartProbD, APerformance, BPerformance, CPerformance, DPerformance)
+            Call PrintHeuristicPerformance(ProbA, ProbB, ProbC, ProbD, ResultA, ResultB, ResultC, ResultD, APerformance, BPerformance, CPerformance, DPerformance, Iteration, Improvement, MaxNumImprovements, CurrentHeuristic, CurrentCost, NumOfFrequenciesUsed)
+            
+            'If the lower bound has been met...
+            If (NumOfFrequenciesUsed = LowerBound) And (Improvement Mod 1000 = 0) Then
+                Exit Do
+            End If
+             
+    Loop Until (Improvement = MaxNumImprovements) Or (FailedIterations = MaxHHAttempts)
+        
+    If ShowAllImprovements = False Then
+        Call PrintImprToAssignmentANDPopsSheets(Domain, FrequencyListAndPopularities(), Improvement, NewCost, "", "", "", NumOfFrequencies, NumOfRequests, NumOfFrequenciesUsed, ShowAllImprovements)
+    End If
+    NewNumFrequenciesUsed = CountFrequenciesUsed_1D(Domain())
+    Call PrintToDatasetSheet(InputShtName, MaxNumImprovements, Improvement, FormulationMethod, FormulationDetails, "Hyper-Heuristic", InitialCost, CurrentCost, InitialNumFrequenciesUsed, NewNumFrequenciesUsed, HHFreqAttempts, StartProbA, StartProbB, StartProbC, StartProbD)
+    ConditionalFormat
+    Call CreateGraph
+End Sub
+Sub UpdateProbANDPerformance(ByVal Improvement As Integer, ByVal CurrentHeuristic As String, ByVal MaxNumImprovements As Long, ProbA As Single, ByRef ProbB As Single, ByRef ProbC As Single, ByRef ProbD As Single, ByVal ResultA As Boolean, ByVal ResultB As Boolean, ByVal ResultC As Boolean, ByVal ResultD As Boolean, ByVal StartProbA As Single, ByVal StartProbB As Single, ByVal StartProbC As Single, ByVal StartProbD As Single, ByRef APerformance() As Long, ByRef BPerformance() As Long, ByRef CPerformance() As Long, ByRef DPerformance() As Long)
+    Dim APrcntage As Single
+    Dim BPrcntage As Single
+    Dim CPrcntage As Single
+    Dim DCooling As Double
+    Dim NewProb As Single
+    
+    Dim APrcntageIncAfterC As Single
+    Dim BPrcntageIncAfterC As Single
+    
+    Dim TempProbA As Single
+    Dim TempProbB As Single
+    Dim TempProbC As Single
+    Dim TempProbD As Single
+    'ie. 0.02 means increase by 0.02 or decrease by 0.02
+    APrcntage = 0.005
+    BPrcntage = 0.005
+    CPrcntage = 0.005
+    
+    DCooling = 1 / (MaxNumImprovements * 5) 'CoolingRate
+    
+    'After completing a same cost move- heuC, we want to increase a and b
+    APrcntageIncAfterC = 0.3
+    BPrcntageIncAfterC = 0.1
+    
+    'First we must cool heuristic D
+    ProbD = ProbD * (1 - DCooling)
+    TempProbC = 1 - ProbA - ProbB - ProbD
+    If TempProbC < 0 Then
+        TempProbB = 1 - ProbA - ProbC - ProbD
+    End If
+    
+    'REMEMBER- A heuristic can result in 'false' if just one constraint is broken. It might be fine the next time.
+    
+    If CurrentHeuristic = "A" Then
+        If ResultA = True Then
+            'A SUCCESS
+            APerformance(1) = APerformance(1) + 1
+            'Increase A, decrease B
+            TempProbA = ProbA * (1 + APrcntage)
+            TempProbB = 1 - TempProbA - ProbC - ProbD
+            If (TempProbA < 1) And (TempProbB > 0) Then
+                ProbA = TempProbA
+                ProbB = TempProbB
+            End If
+            
+    
+            
+            
+            Else
+            'A FAIL
+            APerformance(2) = APerformance(2) + 1
+            'Increase B, decrease A
+            TempProbA = ProbA * (1 - APrcntage)
+            TempProbB = 1 - TempProbA - ProbC - ProbD
+            If (TempProbB < 1) And (TempProbA > 0) Then 'Prevents probability<0
+                ProbA = TempProbA
+                ProbB = TempProbB
+            End If
+        End If
+          
+    ElseIf CurrentHeuristic = "B" Then
+        If ResultB = True Then
+            'B SUCESS
+            BPerformance(1) = BPerformance(1) + 1
+            'Increase A & B, decrease C
+            TempProbA = ProbA * (1 + APrcntage)
+            TempProbB = ProbB * (1 + BPrcntage)
+            TempProbC = 1 - TempProbA - TempProbB - ProbD
+            If (TempProbA + TempProbB < 1) And (TempProbC > 0) Then
+                ProbA = TempProbA
+                ProbB = TempProbB
+                ProbC = TempProbC
+                If ProbC < 0 Then
+                ProbC = ProbC
+                End If
+            End If
+            Else:
+            BPerformance(2) = BPerformance(2) + 1
+            'Increase A & B, decrease C
+            TempProbA = ProbA * (1 - APrcntage)
+            TempProbB = ProbB * (1 - BPrcntage)
+            TempProbC = 1 - TempProbA - TempProbB - ProbD
+            If (TempProbA + TempProbB > 0) And (TempProbC < 1) Then
+                ProbA = TempProbA
+                ProbB = TempProbB
+                ProbC = TempProbC
+            End If
+        End If
+    
+    ElseIf CurrentHeuristic = "C" Then
+        If ResultC = True Then
+            'C SUCCESS
+            CPerformance(1) = CPerformance(1) + 1
+            'Increase A&B, decrease C
+            TempProbA = ProbA * (1 + 1 * APrcntageIncAfterC)
+            TempProbB = ProbB * (1 + 1 * BPrcntageIncAfterC)
+            TempProbC = 1 - TempProbA - TempProbB - ProbD
+            If (TempProbA + TempProbB < 1) And (TempProbC > 0) Then
+                ProbA = TempProbA
+                ProbB = TempProbB
+                ProbC = TempProbC
+            End If
+                   
+            Else
+            'C FAIL
+            CPerformance(2) = CPerformance(2) + 1
+        End If
+    
+    
+    ElseIf CurrentHeuristic = "D" Then
+        If ResultD = True Then
+            DPerformance(1) = DPerformance(1) + 1
+            Else
+            DPerformance(2) = DPerformance(2) + 1
+        End If
+    End If
+
+End Sub
+
+Sub PrintHeuristicPerformance(ProbA As Single, ByRef ProbB As Single, ByRef ProbC As Single, ByRef ProbD As Single, ByVal ResultA As Boolean, ByVal ResultB As Boolean, ByVal ResultC As Boolean, ByVal ResultD As Boolean, ByRef APerformance() As Long, ByRef BPerformance() As Long, ByRef CPerformance() As Long, ByRef DPerformance() As Long, ByVal Iteration As Single, ByVal Improvement As Integer, ByVal MaxNumImprovements As Long, ByVal CurrentHeuristic As String, ByVal Cost As Double, ByVal NumOfFrequenciesUsed As Integer)
+    Dim EmptyColn As Integer
+    Dim PrintEvery As Integer
+    Dim Denominator As Long
+    
+    
+    'Safety
+    
+    
+    If MaxNumImprovements <= 2000 Then
+        PrintEvery = 2
+    ElseIf MaxNumImprovements <= 5000 Then
+        PrintEvery = 10
+    ElseIf MaxNumImprovements <= 10000 Then
+            PrintEvery = 25
+    ElseIf MaxNumImprovements <= 15000 Then
+            PrintEvery = 50
+    ElseIf MaxNumImprovements <= 40000 Then
+            PrintEvery = 400
+    End If
+    
+    Do
+    EmptyColn = EmptyColn + 1
+    Loop Until Sheets("HeuristicPerformance").Cells(4, EmptyColn) = ""
+    
+    If (Iteration Mod PrintEvery = 0) Or (Improvement = MaxNumImprovements) Then
+        'Print All the stuff
+        Sheets("HeuristicPerformance").Cells(1, EmptyColn) = Iteration
+        Sheets("HeuristicPerformance").Cells(2, EmptyColn) = Improvement
+        
+        Sheets("HeuristicPerformance").Cells(4, EmptyColn) = ProbA
+        Sheets("HeuristicPerformance").Cells(5, EmptyColn) = ProbB
+        Sheets("HeuristicPerformance").Cells(6, EmptyColn) = ProbC
+        Sheets("HeuristicPerformance").Cells(7, EmptyColn) = ProbD
+        Sheets("HeuristicPerformance").Cells(8, EmptyColn) = Cost
+        Sheets("HeuristicPerformance").Cells(9, EmptyColn) = NumOfFrequenciesUsed
+        
+        'To prevent overflows when divising by one, we use an if function.
+        Denominator = APerformance(1) + APerformance(2)
+        If Denominator > 0 Then
+            Sheets("HeuristicPerformance").Cells(11, EmptyColn) = APerformance(1)
+            Sheets("HeuristicPerformance").Cells(12, EmptyColn) = Denominator
+            Sheets("HeuristicPerformance").Cells(13, EmptyColn) = APerformance(1) / Denominator
+        End If
+        
+        Denominator = BPerformance(1) + BPerformance(2)
+        If Denominator > 0 Then
+            Sheets("HeuristicPerformance").Cells(14, EmptyColn) = BPerformance(1)
+            Sheets("HeuristicPerformance").Cells(15, EmptyColn) = BPerformance(1) + BPerformance(2)
+            Sheets("HeuristicPerformance").Cells(16, EmptyColn) = BPerformance(1) / Denominator
+        End If
+        
+        Denominator = CPerformance(1) + CPerformance(2)
+        If Denominator > 0 Then
+            Sheets("HeuristicPerformance").Cells(17, EmptyColn) = CPerformance(1)
+            Sheets("HeuristicPerformance").Cells(18, EmptyColn) = CPerformance(1) + CPerformance(2)
+            Sheets("HeuristicPerformance").Cells(19, EmptyColn) = CPerformance(1) / Denominator
+        End If
+        
+        Denominator = DPerformance(1) + DPerformance(2)
+        If Denominator > 0 Then
+            Sheets("HeuristicPerformance").Cells(20, EmptyColn) = DPerformance(1)
+            Sheets("HeuristicPerformance").Cells(21, EmptyColn) = DPerformance(1) + DPerformance(2)
+            Sheets("HeuristicPerformance").Cells(22, EmptyColn) = DPerformance(1) / Denominator
+        End If
+        
+        If PrintEvery = 1 Then 'add extra info
+            If CurrentHeuristic = "A" Then
+                If ResultA = True Then
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "A-Success"
+                Else
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "A-Fail"
+                End If
+            ElseIf CurrentHeuristic = "B" Then
+                If ResultB = True Then
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "B-Success"
+                Else
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "B-Fail"
+                End If
+            ElseIf CurrentHeuristic = "C" Then
+                If ResultC = True Then
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "C-Success"
+                Else
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "C-Fail"
+                End If
+            ElseIf CurrentHeuristic = "D" Then
+                If ResultD = True Then
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "D-Success"
+                Else
+                    Sheets("HeuristicPerformance").Cells(3, EmptyColn) = "D-Fail"
+                End If
+            End If
+        End If
+    End If
+
+End Sub
+Sub PrintImprToAssignmentANDPopsSheets(ByRef Domain() As Integer, FrequencyListAndPopularities() As Integer, ByVal Improvement As Integer, ByVal CurrentCost As Double, ByVal HeuristicMethod As String, ByVal Requests As String, ByVal Frequencies As String, ByVal NumOfFrequencies As Integer, ByVal NumOfRequests As Integer, ByVal NumOfFrequenciesUsed As Integer, ByVal ShowAllImprovements As Boolean)
+    'Prints to Descent AND working
+    'Print on descent
+    Dim i As Integer
+    Dim PrintEvery As Integer
+    Dim CurrentColumn As Integer
+    PrintEvery = 1
+    
+    If (ShowAllImprovements = True) Then
+        CurrentColumn = (Improvement / PrintEvery) + 3
+        Else
+        CurrentColumn = 4
+    End If
+
+    If CurrentColumn = 3 Then
+        Sheets("Popularities").Cells(1, CurrentColumn).Value = "Initial:"
+        Else:
+        Sheets("Popularities").Cells(1, CurrentColumn).Value = Improvement & " imp."
+    End If
+           
+    Sheets("Popularities").Cells(2, CurrentColumn).Value = NumOfFrequenciesUsed
+    Sheets("Popularities").Cells(3, CurrentColumn).Value = CurrentCost
+    Sheets("Popularities").Cells(4, CurrentColumn).Value = HeuristicMethod
+    Sheets("Popularities").Cells(5, CurrentColumn).Value = Requests
+    Sheets("Popularities").Cells(6, CurrentColumn).Value = Frequencies
+    
+ 
+    
+    For i = 1 To NumOfFrequencies
+        Sheets("Popularities").Cells(i + 7, CurrentColumn).Value = FrequencyListAndPopularities(i, 2)
+    Next
+    
+    
+    Sheets("Assignments").Cells(3, CurrentColumn - 1).Value = Improvement & " itn."
+    For i = 1 To NumOfRequests
+        Sheets("Assignments").Cells(i + 3, CurrentColumn - 1).Value = Domain(i)
+    Next
+
+
+End Sub
+
+Sub HeuristicA_RemoveLeastPopularFrequency(ByRef Domain() As Integer, ByRef FrequencyListAndPopularities() As Integer, ByVal NumOfRequests As Integer, ByVal NumOfFrequencies As Integer, ByVal Improvement As Integer, ByVal PreviousCost As Double, ByRef NewCost As Double, ByVal ShowAllImprovements As Boolean, ByRef HeuristicOkay As Boolean, ByRef txt1 As String, ByRef txt2 As String, ByRef txt3 As String)
+    'We loop until the HH gives a lower cost soln, ie. going from least popular to a more popular.
+    'If soln breaks constraints, heuristicokay is false, we return to main HH base
+    
+    
+    Dim LeastPopularFrequency As Integer
+    Dim NewFrequency As Integer
+    Dim OldFrequency As Integer
+    Dim ChangingRequest As Integer
+    
+    Dim LoopCounter As Integer
+    Dim txt As String
+    
+    'Find a request that uses the least popular frequency
+    LeastPopularFrequency = ChooseLeastPopularFrequency(FrequencyListAndPopularities(), NumOfFrequencies)
+    ChangingRequest = FindSpecificRequest(Domain(), LeastPopularFrequency)
+    LoopCounter = 0
+    
+    Do
+        NewFrequency = ChooseRandomFrequency
+        OldFrequency = Domain(ChangingRequest)
+        Domain(ChangingRequest) = NewFrequency
+        
+    
+        'Adjust popularities
+        Call IncreaseFrequencyPopularities(FrequencyListAndPopularities, NewFrequency)
+        Call DecreaseFrequencyPopularities(FrequencyListAndPopularities, LeastPopularFrequency)
+        
+        If Cost(FrequencyListAndPopularities) < PreviousCost Then
+            HeuristicOkay = True
+            Else
+            HeuristicOkay = False
+            'Undo Changes
+            Call IncreaseFrequencyPopularities(FrequencyListAndPopularities, LeastPopularFrequency)
+            Call DecreaseFrequencyPopularities(FrequencyListAndPopularities, NewFrequency)
+            Domain(ChangingRequest) = OldFrequency
+        End If
+    Loop Until HeuristicOkay = True
+        
+    'Check the solution is valid against constraints AND lower cost (since being lower cost implies the request doesn't now use a redundant frequency)
+    If CheckAllConstraints(Domain(), ChangingRequest, "Improve") = True Then
+        HeuristicOkay = True
+        NewCost = Cost(FrequencyListAndPopularities)
+        'String to post
+        txt1 = "A"
+        txt2 = Str(ChangingRequest)
+        txt3 = LeastPopularFrequency & "->" & NewFrequency
+    
+        Else:
+        HeuristicOkay = False
+        'Undo Changes
+        Call IncreaseFrequencyPopularities(FrequencyListAndPopularities, LeastPopularFrequency)
+        Call DecreaseFrequencyPopularities(FrequencyListAndPopularities, NewFrequency)
+        Domain(ChangingRequest) = OldFrequency
+    End If
+
+End Sub
+
+'Lower Cost Move - (Random request changes frequency to more popular(lower cost) frequency). 500 tries
+Sub HeuristicB_LowerCostMove(ByRef Domain() As Integer, ByVal NumOfRequests As Integer, ByVal NumOfFrequencies As Integer, ByRef FrequencyListAndPopularities() As Integer, ByVal Improvement As Integer, ByVal PreviousCost As Double, ByRef NewCost As Double, ByVal ShowAllImprovements As Boolean, ByRef HeuristicOkay As Boolean, ByRef txt1 As String, ByRef txt2 As String, ByRef txt3 As String)
+    'No loops, just random request moving to lower cost frequency.
+    
+    'Declarations
+    
+    Dim OldFrequency As Integer
+    Dim NewFrequency As Integer
+    Dim RandomRequest As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim FreqAssignOkay As Boolean
+    Dim LoopCounter As Integer
+    Dim txt As String
+    
+    'We loop until we have performed a lower cost move. ie. random request
+    '......Problem only if we have just one freq left.
+    
+    Do
+        'Pick A Random Request
+        RandomRequest = Int((Rnd() * NumOfRequests) + 1)
+        
+        'Pick a frequency which is different.
+        Do
+            NewFrequency = ChooseRandomFrequency
+        Loop Until Domain(RandomRequest) <> NewFrequency
+            
+        ' newdomain
+        OldFrequency = Domain(RandomRequest)
+        Domain(RandomRequest) = NewFrequency
+            
+        
+        'Adjust the count
+        Call IncreaseFrequencyPopularities(FrequencyListAndPopularities(), NewFrequency)
+        Call DecreaseFrequencyPopularities(FrequencyListAndPopularities(), OldFrequency)
+        
+        'Check that the Heuristic is a 'LowerCostMove'
+        NewCost = Cost(FrequencyListAndPopularities())
+        If NewCost < PreviousCost Then
+            FreqAssignOkay = True
+            Else:
+            FreqAssignOkay = False
+            'undo the changes too
+            Call IncreaseFrequencyPopularities(FrequencyListAndPopularities(), OldFrequency)
+            Call DecreaseFrequencyPopularities(FrequencyListAndPopularities(), NewFrequency)
+            Domain(RandomRequest) = OldFrequency
+        End If
+    Loop Until FreqAssignOkay = True
+    
+    'Check new value with constraints
+    If CheckAllConstraints(Domain(), RandomRequest, "Improve") = True Then
+        HeuristicOkay = True
+        'String to post
+        txt1 = "B"
+        txt2 = Str(RandomRequest)
+        txt3 = OldFrequency & "<->" & NewFrequency
+        
+        Else:
+        HeuristicOkay = False
+        'Undo the changes
+        Call IncreaseFrequencyPopularities(FrequencyListAndPopularities(), OldFrequency)
+        Call DecreaseFrequencyPopularities(FrequencyListAndPopularities(), NewFrequency)
+        Domain(RandomRequest) = OldFrequency
+    End If
+
+End Sub
+
+Sub HeuristicC_SameCostSwap(ByRef Domain() As Integer, ByRef FrequencyListAndPopularities() As Integer, ByVal NumOfRequests As Integer, ByVal NumOfFrequencies As Integer, ByVal Improvement As Integer, ByVal PreviousCost As Double, ByRef NewCost As Double, ByVal ShowAllImprovements As Boolean, ByRef HeuristicOkay As Boolean, ByRef txt1 As String, ByRef txt2 As String, ByRef txt3 As String)
+
+    'Declarations
+    Dim RequestA As Integer
+    Dim RequestB As Integer
+    Dim FrequencyA As Integer
+    Dim FrequencyB As Integer
+    Dim TempDomain() As Integer
+    Dim i As Integer
+    Dim txt As String
+    ReDim TempDomain(1 To NumOfRequests)
+    
+    
+    'Pick the requests and their assigned frequencies
+    RequestA = ChooseRandomRequest(NumOfRequests)
+    FrequencyA = Domain(RequestA)
+    
+    RequestB = ChooseRandomRequest(NumOfRequests)
+    FrequencyB = Domain(RequestB)
+    
+    'Make the swap
+    Domain(RequestA) = FrequencyB
+    Domain(RequestB) = FrequencyA
+    
+    
+    If (CheckAllConstraints(Domain(), RequestA, "Improve") = True) And (CheckAllConstraints(Domain(), RequestB, "Improve") = True) Then
+        HeuristicOkay = True
+        NewCost = PreviousCost
+        txt1 = "C"
+        txt2 = Str(RequestA) & "&" & Str(RequestB)
+        txt3 = FrequencyA & "<->" & FrequencyB
+        Else:
+        HeuristicOkay = False
+        'Undo the swap
+        Domain(RequestA) = FrequencyA
+        Domain(RequestB) = FrequencyB
+    End If
+
+End Sub
+
+
+Sub HeuristicD_WorseMove(ByRef Domain() As Integer, ByVal NumOfRequests As Integer, ByVal NumOfFrequencies As Integer, ByRef FrequencyListAndPopularities() As Integer, ByVal Improvement As Integer, ByRef NewCost As Double, ByVal ShowAllImprovements As Boolean, ByRef HeuristicOkay As Boolean, ByRef txt1 As String, ByRef txt2 As String, ByRef txt3 As String)
+    'Declarations
+    Dim OldFrequency As Integer
+    Dim NewFrequency As Integer
+    Dim RandomRequest As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim FreqAssignOkay As Boolean
+    Dim txt As String
+    
+    Do
+        'Pick A Random Request
+        RandomRequest = Int((Rnd() * NumOfRequests) + 1)
+        
+        'Pick a frequency which is different.
+        Do
+            NewFrequency = ChooseRandomFrequency
+        Loop Until Domain(RandomRequest) <> NewFrequency
+        
+        'Give the request the new frequency
+        OldFrequency = Domain(RandomRequest)
+        Domain(RandomRequest) = NewFrequency
+        
+        
+        'Adjust the count
+        Call IncreaseFrequencyPopularities(FrequencyListAndPopularities(), NewFrequency)
+        Call DecreaseFrequencyPopularities(FrequencyListAndPopularities(), OldFrequency)
+            
+        NewCost = Cost(FrequencyListAndPopularities())
+        
+        If NewCost > PreviousCost Then
+            HeuristicOkay = True
+            Else
+            HeuristicOkay = False
+            'Undo the changes
+            Call IncreaseFrequencyPopularities(FrequencyListAndPopularities(), OldFrequency)
+            Call DecreaseFrequencyPopularities(FrequencyListAndPopularities(), NewFrequency)
+            Domain(RandomRequest) = OldFrequency
+        End If
+    Loop Until HeuristicOkay = True
+    
+        
+    
+    
+    
+    'Check new value with constraints
+    If CheckAllConstraints(Domain(), RandomRequest, "Improve") = True Then
+        HeuristicOkay = True
+    
+        
+        txt1 = "D"
+        txt2 = Str(RandomRequest)
+        txt3 = OldFrequency & "->" & NewFrequency
+        Else:
+        HeuristicOkay = False
+        'Undo the changes
+        Call IncreaseFrequencyPopularities(FrequencyListAndPopularities(), OldFrequency)
+        Call DecreaseFrequencyPopularities(FrequencyListAndPopularities(), NewFrequency)
+        Domain(RandomRequest) = OldFrequency
+    End If
+
+End Sub
+

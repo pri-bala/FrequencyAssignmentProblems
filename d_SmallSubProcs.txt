@@ -1,0 +1,190 @@
+Option Explicit
+
+Sub ClearAllPrintSheets()
+    Sheets("Assignments").Cells.Clear
+    Sheets("Popularities").Cells.Clear
+    Sheets("HeuristicPerformance").Cells.Clear
+    Sheets("HeuristicPerformance").ChartObjects("Graph1").Visible = False
+    Sheets("HeuristicPerformance").ChartObjects("Graph2").Visible = False
+    Sheets("HeuristicPerformance").ChartObjects("Graph3").Visible = False
+    Sheets("HeuristicPerformance").ChartObjects("Graph4").Visible = False
+End Sub
+
+Sub PreparePopularitiesSheet(ByVal InitialNumFrequenciesUsed As Integer, ByVal InitialCost As Double, ByRef FrequencyListAndPopularities() As Integer)
+    Dim i As Integer
+    Sheets("Popularities").Cells(7, 1).Value = "i"
+    Sheets("Popularities").Cells(7, 2).Value = "Frequency: "
+    Sheets("Popularities").Cells(1, 3).Value = "Initial: "
+    Sheets("Popularities").Cells(2, 3).Value = InitialNumFrequenciesUsed
+    Sheets("Popularities").Cells(3, 3).Value = InitialCost
+    Sheets("Popularities").Cells(5, 3).Value = "Initial:"
+    Sheets("Popularities").Cells(3, 2).Value = "Cost:"
+    Sheets("Popularities").Cells(4, 2).Value = "Heuristic Used:"
+    Sheets("Popularities").Cells(5, 2).Value = "Requests:"
+    Sheets("Popularities").Cells(6, 2).Value = "Frequencies:"
+    
+    For i = 1 To UBound(FrequencyListAndPopularities())
+        Sheets("Popularities").Cells(i + 7, 1).Value = i
+        Sheets("Popularities").Cells(i + 7, 2).Value = FrequencyListAndPopularities(i, 1)
+        Sheets("Popularities").Cells(i + 7, 3).Value = FrequencyListAndPopularities(i, 2)
+    Next
+End Sub
+Sub PrepareHeuristicPerformanceSheets(ByVal ProbA As Single, ByVal ProbB As Single, ByVal ProbC As Single, ByVal ProbD As Single)
+    Sheets("HeuristicPerformance").Cells.Clear
+    Sheets("HeuristicPerformance").Range("A1").Value = "Iterations (HH Runs)"
+    Sheets("HeuristicPerformance").Range("A2").Value = "Improvements"
+    Sheets("HeuristicPerformance").Range("A4").Value = "A"
+    Sheets("HeuristicPerformance").Range("A5").Value = "B"
+    Sheets("HeuristicPerformance").Range("A6").Value = "C"
+    Sheets("HeuristicPerformance").Range("A7").Value = "D"
+    Sheets("HeuristicPerformance").Range("A8").Value = "Cost"
+    Sheets("HeuristicPerformance").Range("A9").Value = "Num of Freqs Used"
+    Sheets("HeuristicPerformance").Range("A11").Value = "A-Successes"
+    Sheets("HeuristicPerformance").Range("A12").Value = "A-Total Runs"
+    Sheets("HeuristicPerformance").Range("A14").Value = "B-Successes"
+    Sheets("HeuristicPerformance").Range("A15").Value = "B-Total Runs"
+    Sheets("HeuristicPerformance").Range("A17").Value = "C-Successes"
+    Sheets("HeuristicPerformance").Range("A18").Value = "C-Total Runs"
+    Sheets("HeuristicPerformance").Range("A20").Value = "D-Successes"
+    Sheets("HeuristicPerformance").Range("A21").Value = "D-Total Runs"
+    Sheets("HeuristicPerformance").Range("B3").Value = "Initial Prob"
+    Sheets("HeuristicPerformance").Range("B4").Value = ProbA
+    Sheets("HeuristicPerformance").Range("B5").Value = ProbB
+    Sheets("HeuristicPerformance").Range("B6").Value = ProbC
+    Sheets("HeuristicPerformance").Range("B7").Value = ProbD
+End Sub
+Sub PrintInitialRunToAssignmentsSheet(Domain() As Integer)
+    Dim Request As Integer
+    Dim NumOfRequests As Integer
+    
+    NumOfRequests = UBound(Domain())
+    
+    Sheets("Assignments").Cells(3, 1).Value = "Request:"
+    Sheets("Assignments").Cells(2, 2).Value = "Initial"
+    Sheets("Assignments").Cells(3, 2).Value = "Frequency:"
+    For Request = 1 To NumOfRequests
+        Sheets("Assignments").Cells(Request + 3, 1).Value = Request
+        Sheets("Assignments").Cells(Request + 3, 2).Value = Domain(Request)
+    Next
+End Sub
+
+'Choosing different starting value on Ascending Algorith.
+Sub ReOrderFrequencyList(StartNum, ByRef OrderFrequencyList() As Integer) 'StartNum=2 Moves pos2 to pos1, pos3 to pos2 etc.
+
+'Declarations
+    Dim i As Integer
+    Dim j As Integer
+    Dim Temp() As Integer
+    Dim NumOfFrequencies As Integer
+    Dim MovePositions As Integer
+    
+'Initial Values & Array Sizing
+    MovePositions = StartNum - 1
+
+    ReDim Temp(1 To MovePositions)
+    NumOfFrequencies = UBound(OrderFrequencyList())
+    
+'Method
+    For i = 1 To NumOfFrequencies
+        If i <= MovePositions Then Temp(i) = OrderFrequencyList(i)
+        If i > MovePositions Then OrderFrequencyList(i - MovePositions) = OrderFrequencyList(i)
+    Next i
+    
+    j = 1
+    For i = NumOfFrequencies - MovePositions + 1 To NumOfFrequencies
+        OrderFrequencyList(i) = Temp(j)
+        j = j + 1
+    Next
+
+End Sub
+
+
+Sub SwapIntegers(ByRef A As Integer, ByRef B As Integer)
+    'Declarations
+    Dim TempInt As Integer
+    
+    'Method
+    TempInt = A
+    A = B
+    B = TempInt
+End Sub
+
+Sub CountPopularities(ByVal NumOfRequests As Integer, ByVal NumOfFrequencies As Integer, ByRef Domain() As Integer, FrequencyListAndPopularities() As Integer)
+    Dim i As Integer
+    Dim j As Integer
+    
+
+    'Store frequencies
+    For i = 1 To NumOfFrequencies
+        FrequencyListAndPopularities(i, 1) = FrequencyList(i)
+    Next i
+    
+    'Count the number of times each frequency is used
+    For i = 1 To NumOfRequests
+            For j = 1 To NumOfFrequencies
+            If Domain(i) = FrequencyListAndPopularities(j, 1) Then
+                FrequencyListAndPopularities(j, 2) = FrequencyListAndPopularities(j, 2) + 1
+                Exit For
+            End If
+        Next j
+    Next i
+    
+End Sub
+
+Sub PrintToDatasetSheet(ByVal SheetName As String, ByVal NumOfIterations As String, ByVal NumOfIterationsSuccesful As String, ByVal FormulationMethod As String, ByVal FormulationDetails As String, ByVal ImprovementMethod As String, ByVal InitialCost As String, ByVal FinalCost As String, ByVal InitialFrequenciesUsed As String, ByVal FinalFrequenciesUsed As String, ByVal HHFreqAttempts As String, ByVal ProbA As Single, ByVal ProbB As Single, ByVal ProbC As Single, ByVal ProbD As Single)
+    Dim RunNumber As Integer
+    
+    RunNumber = Sheets(SheetName).Range("G2").Value + 1
+    
+    Sheets(SheetName).Cells(2 + RunNumber, 8).Value = Date & "  " & Time
+    Sheets(SheetName).Cells(2 + RunNumber, 9).Value = Timer - StartTimer
+    Sheets(SheetName).Cells(2 + RunNumber, 10).Value = RunNumber
+    Sheets(SheetName).Cells(2 + RunNumber, 11).Value = FormulationMethod
+    Sheets(SheetName).Cells(2 + RunNumber, 12).Value = FormulationDetails
+    Sheets(SheetName).Cells(2 + RunNumber, 13).Value = InitialFrequenciesUsed
+    Sheets(SheetName).Cells(2 + RunNumber, 14).Value = InitialCost
+    Sheets(SheetName).Cells(2 + RunNumber, 15).Value = ImprovementMethod
+    Sheets(SheetName).Cells(2 + RunNumber, 16).Value = NumOfIterations
+    Sheets(SheetName).Cells(2 + RunNumber, 17).Value = NumOfIterationsSuccesful
+    
+    
+    Sheets(SheetName).Cells(2 + RunNumber, 18).Value = FinalFrequenciesUsed
+    
+    Sheets(SheetName).Cells(2 + RunNumber, 19).Value = FinalCost
+    Sheets(SheetName).Cells(2 + RunNumber, 20).Value = HHFreqAttempts
+    If ProbA + ProbB + ProbC + ProbD > 0 Then
+        Sheets(SheetName).Cells(2 + RunNumber, 21).Value = ProbA
+        Sheets(SheetName).Cells(2 + RunNumber, 22).Value = ProbB
+        Sheets(SheetName).Cells(2 + RunNumber, 23).Value = ProbC
+        Sheets(SheetName).Cells(2 + RunNumber, 24).Value = ProbD
+    Else
+        Sheets(SheetName).Cells(2 + RunNumber, 21).Value = "-"
+        Sheets(SheetName).Cells(2 + RunNumber, 22).Value = "-"
+        Sheets(SheetName).Cells(2 + RunNumber, 23).Value = "-"
+        Sheets(SheetName).Cells(2 + RunNumber, 24).Value = "-"
+    End If
+    
+    Sheets(SheetName).Range("G2").Value = Sheets(SheetName).Range("G2").Value + 1
+End Sub
+
+Sub DecreaseFrequencyPopularities(ByRef FrequencyListAndPopularities() As Integer, DecreaseFreq)
+    Dim i As Integer
+
+    For i = 1 To UBound(FrequencyListAndPopularities)
+        If FrequencyListAndPopularities(i, 1) = DecreaseFreq Then
+            FrequencyListAndPopularities(i, 2) = FrequencyListAndPopularities(i, 2) - 1
+            Exit For
+        End If
+    Next i
+
+
+End Sub
+Sub IncreaseFrequencyPopularities(ByRef FrequencyListAndPopularities() As Integer, IncreaseFreq)
+    Dim i As Integer
+    For i = 1 To UBound(FrequencyListAndPopularities)
+        If FrequencyListAndPopularities(i, 1) = IncreaseFreq Then
+            FrequencyListAndPopularities(i, 2) = FrequencyListAndPopularities(i, 2) + 1
+            Exit For
+        End If
+    Next i
+End Sub

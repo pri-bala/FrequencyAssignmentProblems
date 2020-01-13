@@ -1,0 +1,492 @@
+Option Explicit
+
+Sub CheckBoxSA_Change()
+    Call OptionButtonImprovement_Change
+End Sub
+
+Sub btnRun_Click()
+    Call Main
+End Sub
+
+Sub btnOrderFrequencies_Click()
+    Dim InputSht As String
+    InputSht = Sheets("RunProgram").Range("C5").Value
+    Call OrderFrequencies(InputSht)
+End Sub
+
+Sub btnUpdateFreqs_Click()
+    Dim InputWorksheetName As String
+    Dim i As Integer
+    Dim SpaceDist As Integer
+    Dim SpacedFrequencyList() As Integer
+    
+    InputWorksheetName = Range("K5").Value
+    Call InputFrequencies(InputWorksheetName)
+    
+    If Sheets("RunProgram").Range("E6").Value = 1 Then
+        For i = 1 To UBound(FrequencyList())
+            Cells(i + 5, 5).Value = FrequencyList(i)
+        Next i
+    End If
+    
+    SpaceDist = Sheets("RunProgram").Range("K11").Value
+    
+    If Sheets("RunProgram").Range("E6").Value = 3 Then
+        Call ArrangeFreqsBySpacing(UBound(FrequencyList()), SpacedFrequencyList(), SpaceDist)
+        For i = 1 To UBound(SpacedFrequencyList())
+            Cells(i + 5, 5).Value = SpacedFrequencyList(i)
+        Next i
+    End If
+    Application.Calculation = xlCalculationAutomatic
+
+End Sub
+
+
+Sub OptionButtonSetUp_Change()
+    Dim SheetName As String
+    Dim i As Integer
+    
+    SheetName = Range("C5").Value
+    Call InputFrequencies(SheetName)
+    
+    'Random algorithm
+    If Sheets("RunProgram").Range("E6").Value = 1 Then
+        Sheets("RunProgram").Range("C9").Value = "N/A"
+        Sheets("RunProgram").Range("C9").Interior.Color = RGB(0, 0, 0)
+        Sheets("RunProgram").Range("C11").Value = "N/A"
+        Sheets("RunProgram").Range("C11").Interior.Color = RGB(0, 0, 0)
+    End If
+    
+    'Ascending Algorithm
+    If Sheets("RunProgram").Range("E6").Value = 2 Then
+        Range("G1").Value = UBound(FrequencyList())
+        For i = 1 To UBound(FrequencyList())
+                Cells(i + 1, 7).Value = FrequencyList(i)
+        Next i
+        Sheets("RunProgram").Range("C9").Value = Sheets("RunProgram").Range("G2").Value
+        Sheets("RunProgram").Range("C9").Interior.Color = RGB(215, 235, 255)
+        Sheets("RunProgram").Range("C11").Value = "N/A"
+        Sheets("RunProgram").Range("C11").Interior.Color = RGB(0, 0, 0)
+    End If
+    
+    'Spaced Algorithm
+    If Sheets("RunProgram").Range("E6").Value = 3 Then
+        Sheets("RunProgram").Range("C9").Value = "N/A"
+        Sheets("RunProgram").Range("C9").Interior.Color = RGB(0, 0, 0)
+        Sheets("RunProgram").Range("C11").Value = AdvisedSpacingDistance(SheetName)
+        Sheets("RunProgram").Range("C11").Interior.Color = RGB(215, 235, 255)
+    End If
+End Sub
+
+Sub btnUpdate_Click()
+    Dim WorksheetList() As String
+    Dim i As Integer
+    Dim j As Integer
+    
+    ReDim WorksheetList(1 To Sheets.Count)
+    
+    j = 1
+    Columns(6).Clear
+    Columns(6).Interior.Color = RGB(0, 0, 0)
+    
+    MsgBox ("Make sure the new dataset is on a new sheet, and laid out as required.")
+    
+    For i = 1 To UBound(WorksheetList())
+        If (Sheets(i).Name <> "RunProgram") And (Sheets(i).Name <> "Assignments") And (Sheets(i).Name <> "Popularities") And (Sheets(i).Name <> "HeuristicPerformance") Then
+            j = j + 1
+            Cells(j, 6).Value = Sheets(i).Name
+        End If
+    Next i
+    Range("F1").Value = j - 1
+End Sub
+
+
+
+Sub DELETEOptionButtonImprovement_Change()
+
+    If Sheets("RunProgram").Range("L20").Value = 1 Then
+        Sheets("RunProgram").Shapes("CheckBoxSA").Visible = False
+        Sheets("RunProgram").Range("C21").Value = "N/A"
+        Sheets("RunProgram").Range("C22").Value = "N/A"
+        Sheets("RunProgram").Range("C23").Value = "N/A"
+    End If
+    If Sheets("RunProgram").Range("L20").Value = 2 Then
+        Sheets("RunProgram").Shapes("CheckBoxSA").Visible = True
+        If Sheets("RunProgram").Range("K15").Value = "True" Then
+            Sheets("RunProgram").Range("C21").Value = "300"
+            Sheets("RunProgram").Range("C22").Value = "0.95"
+        Else:
+            Sheets("RunProgram").Range("C21").Value = "N/A"
+            Sheets("RunProgram").Range("C22").Value = "N/A"
+        End If
+        Sheets("RunProgram").Range("C23").Value = "N/A"
+    End If
+    If Sheets("RunProgram").Range("L20").Value = 3 Then
+        Sheets("RunProgram").Shapes("CheckBoxSA").Visible = False
+        Sheets("RunProgram").Range("C21").Value = "N/A"
+        Sheets("RunProgram").Range("C22").Value = "N/A"
+        Sheets("RunProgram").Range("C23").Value = "7"
+    End If
+End Sub
+Sub chkHH_cLICK()
+If Range("E14").Value = True Then
+    Range("A15", "D30").Interior.Color = RGB(215, 235, 255)
+    Range("C18").Value = "500"
+    
+    Range("C21").Value = 0.4
+    Range("C22").Value = 0.25
+    Range("C23").Value = 0.2
+    Range("C24").Value = 0.15
+    
+    Range("C28").Value = 100
+    Range("C30").Value = 0
+    'C18
+    With Range("C18").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C18").Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C18").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C18").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+'C21
+    With Range("C21").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C21").Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C21").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C21").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+'C28
+    With Range("C28").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C28").Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C28").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C28").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+'C21
+    With Range("C30").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C30").Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C30").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C30").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    
+
+'C22
+    With Range("C22").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C22").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+
+        .Weight = xlMedium
+    End With
+    With Range("C22").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+'C23
+    With Range("C23").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C23").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C23").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+'C24
+    With Range("C24").Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C24").Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    With Range("C24").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Weight = xlMedium
+    End With
+    
+    
+    Range("B18").Value = "Number of Improvements:"
+    Range("B20").Value = "Heuristic Start Probabilities           :"
+
+    Range("B28").Value = "Max Number of Failed Iterations"
+    Range("B30").Value = "Lower Bound for Num of Frequencies"
+    Range("B28").Value = "Max Number of Failed Iterations :"
+    Range("B30").Value = "Lower Bound for Num of Frequencies :"
+    Range("D28").Value = "eg.  =100 would mean 100 iterations without improvement and the program will quit."
+    Range("D30").Value = "The program will end early if this value is reached. (Set to 0 if not known)"
+    Range("B21").Value = "Heuristic A - Remove Least Popular Freq : "
+'
+
+    With Range("B21").Characters(Start:=1, Length:=11).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B21").Characters(Start:=12, Length:=30).Font
+        .Name = "Calibri"
+        .FontStyle = "Italic"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B21").Characters(Start:=42, Length:=1).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    
+    
+    
+    
+    
+    
+    
+    Range("B22").Value = "Heuristic B - Lower Cost Move                        :  "
+    With Range("B22").Characters(Start:=1, Length:=11).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B22").Characters(Start:=12, Length:=43).Font
+        .Name = "Calibri"
+        .FontStyle = "Italic"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B22").Characters(Start:=55, Length:=2).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    Range("B23").Value = "Heuristic C - Same Cost Swap                          :  "
+    With Range("B23").Characters(Start:=1, Length:=11).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B23").Characters(Start:=12, Length:=44).Font
+        .Name = "Calibri"
+        .FontStyle = "Italic"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B23").Characters(Start:=56, Length:=2).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    Range("B24").Value = "Heuristic D -  Worse Move                                   :  "
+    With Range("B24").Characters(Start:=1, Length:=11).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B24").Characters(Start:=12, Length:=50).Font
+        .Name = "Calibri"
+        .FontStyle = "Italic"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    With Range("B24").Characters(Start:=62, Length:=2).Font
+        .Name = "Calibri"
+        .FontStyle = "Regular"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    Sheets("RunProgram").Shapes("Check box 30").Visible = True
+Else
+
+    
+    Sheets("RunProgram").Shapes("Check box 30").Visible = False
+
+    Range("B18", "D30").Value = ""
+    Range("C18").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C18").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C18").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C18").Borders(xlEdgeRight).LineStyle = xlNone
+    Range("C21").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C21").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C21").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C21").Borders(xlEdgeRight).LineStyle = xlNone
+    Range("C22").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C22").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C22").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C22").Borders(xlEdgeRight).LineStyle = xlNone
+    Range("C23").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C23").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C23").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C23").Borders(xlEdgeRight).LineStyle = xlNone
+    Range("C24").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C24").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C24").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C24").Borders(xlEdgeRight).LineStyle = xlNone
+    Range("C28").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C28").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C28").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C28").Borders(xlEdgeRight).LineStyle = xlNone
+    Range("C30").Borders(xlEdgeLeft).LineStyle = xlNone
+    Range("C30").Borders(xlEdgeTop).LineStyle = xlNone
+    Range("C30").Borders(xlEdgeBottom).LineStyle = xlNone
+    Range("C30").Borders(xlEdgeRight).LineStyle = xlNone
+End If
+
+
+
+End Sub
